@@ -4,9 +4,8 @@ from icalendar import Calendar
 from models import Event, EventType
 
 
-def parse_ics(input_file):
-    with open(input_file, "rb") as f:
-        cal = Calendar.from_ical(f.read())
+def parse_ics(raw: bytes) -> list[Event]:
+    cal = Calendar.from_ical(raw)
 
     events = []
     for component in cal.walk("VEVENT"):
