@@ -1,2 +1,7 @@
-.venv
-.idea
+.venv/
+.idea/
+
+test/
+data/
+
+.env
