@@ -10,7 +10,6 @@ CREATE TABLE IF NOT EXISTS events (
     import_id TEXT NOT NULL,
     name      TEXT NOT NULL,
     type      TEXT NOT NULL,
-    day       TEXT NOT NULL,
     starts_at TEXT NOT NULL,
     ends_at   TEXT NOT NULL,
     UNIQUE (user_id, name, type, starts_at)

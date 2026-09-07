@@ -14,14 +14,14 @@ async def main():
     load_dotenv()
 
     conn = await connect()
-    repo = EventRepo(conn)
+    event_repo = EventRepo(conn)
 
     bot = Bot(token=os.environ["BOT_TOKEN"])
     dp = Dispatcher()
     dp.include_router(router)
 
     try:
-        await dp.start_polling(bot, repo=repo)
+        await dp.start_polling(bot, event_repo=event_repo)
     finally:
         await conn.close()
 

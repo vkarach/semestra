@@ -16,14 +16,14 @@ class Upload(StatesGroup):
 
 
 @router.message(Command("add_events"))
-async def cmd_today(message: Message, state: FSMContext):
+async def cmd_add_events(message: Message, state: FSMContext):
     await state.set_state(Upload.waiting_file)
     content = Text("Send events ", Italic(Bold(".ics")), " file")
     await message.answer(**content.as_kwargs())
 
 
 @router.message(Upload.waiting_file, F.document)
-async def add_events(message: Message, bot: Bot, repo: EventRepo):
+async def add_events(message: Message, bot: Bot, event_repo: EventRepo):
     document = message.document
     assert document
     assert message.from_user
@@ -41,7 +41,7 @@ async def add_events(message: Message, bot: Bot, repo: EventRepo):
     assert buffer
 
     events = parse_ics(buffer.read())
-    await repo.save_events(message.from_user.id, events)
+    await event_repo.save_events(message.from_user.id, events)
     await message.answer(f"saved {len(events)} events")
 
 
