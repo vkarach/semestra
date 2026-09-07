@@ -1,3 +1,4 @@
+import logging
 from itertools import groupby
 
 from aiogram import Router, F, Bot
@@ -9,6 +10,8 @@ from aiogram.types import Message
 
 from db import EventRepo
 
+log = logging.getLogger(__name__)
+
 router = Router()
 
 
@@ -16,6 +19,10 @@ router = Router()
 async def cmd_show(message: Message, event_repo: EventRepo):
     assert message.from_user
     events = await event_repo.select_events(message.from_user.id)
+    if not events:
+        log.info("user %s: /show with no stored events", message.from_user.id)
+        await message.answer("Nothing stored yet, /add_events first")
+        return
 
     for day, day_events in groupby(events, key=lambda e: e.day):
         section = as_marked_section(

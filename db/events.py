@@ -1,7 +1,11 @@
+import logging
 from datetime import datetime
 from uuid import uuid4
 
 from models import Event, EventType
+
+
+log = logging.getLogger(__name__)
 
 
 class EventRepo:
@@ -43,13 +47,15 @@ class EventRepo:
         ]
 
         await self._conn.executemany(self._INSERT_EVENT, rows)
-        await self._conn.execute(self._DELETE_STALE_EVENT, (user_id, import_id))
+        cursor = await self._conn.execute(self._DELETE_STALE_EVENT, (user_id, import_id))
         await self._conn.commit()
+        log.info("user %s: upserted %d events, pruned %d stale", user_id, len(rows), cursor.rowcount)
 
 
     async def select_events(self, user_id: int):
         async with self._conn.execute(self._SELECT_EVENTS, (user_id,)) as cursor:
             rows = await cursor.fetchall()
+        log.debug("user %s: selected %d events", user_id, len(rows))
         return [
             Event(
                 name=row[0],

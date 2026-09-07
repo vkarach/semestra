@@ -1,7 +1,9 @@
 .venv/
 .idea/
+__pycache__/
 
 test/
 data/
+logs/
 
 .env
