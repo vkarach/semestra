@@ -1,4 +1,5 @@
-from zoneinfo import ZoneInfo
+from dataclasses import dataclass
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import argparse
 import logging
 
@@ -7,15 +8,35 @@ from models import Event, EventType
 
 log = logging.getLogger(__name__)
 
+@dataclass(slots=True)
+class ParsedTimetable:
+    timezone: str | None
+    events: list[Event]
 
-def parse_ics(raw: bytes) -> list[Event]:
+
+def _extract_timezone(cal: Calendar) -> str | None:
+    candidates = []
+    if "X-WR-TIMEZONE" in cal:
+        candidates.append(cal["X-WR-TIMEZONE"].to_ical().decode())
+    for component in cal.walk("VEVENT"):
+        tzid = component.get("DTSTART").params.get("TZID")
+        if tzid:
+            candidates.append(str(tzid))
+            break
+
+    for tzid in candidates:
+        try:
+            ZoneInfo(tzid)
+            return tzid
+        except (ZoneInfoNotFoundError, ValueError):
+            log.warning("unusable timezone %r", tzid)
+    return None
+
+
+def parse_ics(raw: bytes) -> ParsedTimetable:
     cal = Calendar.from_ical(raw)
 
-    try:
-        tzid = cal["X-WR-TIMEZONE"].to_ical().decode() # todo: only X-WR-TIMEZONE, add VTIMEZONE fallback
-        tz = ZoneInfo(tzid)
-    except Exception as e:
-        log.warning("no usable X-WR-TIMEZONE: %s", e)
+    tz_str = _extract_timezone(cal)
 
     events = []
     skipped = 0
@@ -37,7 +58,7 @@ def parse_ics(raw: bytes) -> list[Event]:
         events.append(event)
 
     log.info("parsed %d events, skipped %d without DTEND", len(events), skipped)
-    return events
+    return ParsedTimetable(tz_str, events)
 
 
 
@@ -46,5 +67,4 @@ if __name__ == '__main__':
     parser.add_argument("input", type=str, help="path to file")
     args = parser.parse_args()
 
-    events = parse_ics(args.input)
-    print(events)
+    print(parse_ics(args.input))
