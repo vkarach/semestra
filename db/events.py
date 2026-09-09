@@ -8,6 +8,17 @@ from models import Event, EventType
 log = logging.getLogger(__name__)
 
 
+def _row_to_event(row) -> Event:
+    return Event(
+        id=row[0],
+        name=row[1],
+        event_type=EventType[row[2]],
+        start=datetime.fromisoformat(row[3]),
+        end=datetime.fromisoformat(row[4]),
+        notified_at=datetime.fromisoformat(row[5]) if row[5] else None,
+    )
+
+
 class EventRepo:
     _INSERT_EVENT = (
         '''
@@ -29,6 +40,11 @@ class EventRepo:
         "SELECT rowid, name, type, starts_at, ends_at, notified_at FROM events "
         "WHERE user_id = ? AND starts_at >= ? AND starts_at < ? "
         "ORDER BY starts_at"
+    )
+    _SELECT_NEXT_EVENT = (
+        "SELECT rowid, name, type, starts_at, ends_at, notified_at FROM events "
+        "WHERE user_id = ? AND starts_at >= ? "
+        "ORDER BY starts_at LIMIT 1"
     )
     _MARK_NOTIFIED = "UPDATE events SET notified_at = ? WHERE rowid = ?"
 
@@ -68,22 +84,23 @@ class EventRepo:
                  user_id, len(rows), replace, pruned)
 
 
-    async def select_events(self, user_id: int, start: datetime, end: datetime):
+    async def select_events(self, user_id: int, start: datetime, end: datetime) -> list[Event]:
         params = (user_id, start.isoformat(), end.isoformat())
         async with self._conn.execute(self._SELECT_EVENTS, params) as cursor:
             rows = await cursor.fetchall()
         log.debug("user %s: selected %d events in [%s, %s)", user_id, len(rows), start, end)
-        return [
-            Event(
-                id=row[0],
-                name=row[1],
-                event_type=EventType[row[2]],
-                start=datetime.fromisoformat(row[3]),
-                end=datetime.fromisoformat(row[4]),
-                notified_at=datetime.fromisoformat(row[5]) if row[5] else None,
-            )
-            for row in rows
-        ]
+        return [_row_to_event(row) for row in rows]
+
+
+    async def select_next_event(self, user_id: int, start: datetime) -> Event | None:
+        params = (user_id, start.isoformat())
+        async with self._conn.execute(self._SELECT_NEXT_EVENT, params) as cursor:
+            row = await cursor.fetchone()
+        event = _row_to_event(row) if row else None
+        log.debug("user %s: next event after %s -> %s", user_id, start,
+                  event.name if event else "none")
+        return event
+
 
     async def mark_notified(self, event_id: int, when: datetime):
         await self._conn.execute(self._MARK_NOTIFIED, (when.isoformat(), event_id))
