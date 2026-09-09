@@ -22,6 +22,9 @@ class EventRepo:
     _DELETE_STALE_EVENT = (
         "DELETE FROM events WHERE user_id = ? AND import_id != ?"
     )
+    _DELETE_STALE_FUTURE = (
+        "DELETE FROM events WHERE user_id = ? AND import_id != ? AND starts_at > ?"
+    )
     _SELECT_EVENTS = (
         "SELECT rowid, name, type, starts_at, ends_at, notified_at FROM events "
         "WHERE user_id = ? AND starts_at >= ? AND starts_at < ? "
@@ -33,7 +36,8 @@ class EventRepo:
     def __init__(self, conn):
         self._conn = conn
 
-    async def save_events(self, user_id: int, events: list[Event]):
+    async def save_events(self, user_id: int, events: list[Event], replace: bool,
+                          now: datetime | None = None):
         if not events:
             return
         import_id = uuid4().hex
@@ -50,9 +54,18 @@ class EventRepo:
         ]
 
         await self._conn.executemany(self._INSERT_EVENT, rows)
-        cursor = await self._conn.execute(self._DELETE_STALE_EVENT, (user_id, import_id))
+        pruned = 0
+        if replace:
+            if now is not None:
+                cursor = await self._conn.execute(
+                    self._DELETE_STALE_FUTURE, (user_id, import_id, now.isoformat())
+                )
+            else:
+                cursor = await self._conn.execute(self._DELETE_STALE_EVENT, (user_id, import_id))
+            pruned = cursor.rowcount
         await self._conn.commit()
-        log.info("user %s: upserted %d events, pruned %d stale", user_id, len(rows), cursor.rowcount)
+        log.info("user %s: upserted %d events, replace=%s pruned %d",
+                 user_id, len(rows), replace, pruned)
 
 
     async def select_events(self, user_id: int, start: datetime, end: datetime):
