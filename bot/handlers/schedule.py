@@ -82,8 +82,8 @@ async def get_now(message: Message, user_repo: UserRepo) -> datetime | None:
     assert message.from_user
     tz_str = await user_repo.get_timezone(message.from_user.id)
     if not tz_str:
-        log.info("user %s: with no timezone", message.from_user.id)
-        await message.answer("No timezone :( contact developer @karachv")
+        log.info("user %s: schedule request with no timezone set", message.from_user.id)
+        await message.answer("Send your timetable first: /add_events")
         return None
 
     return clock.now(tz_str)
