@@ -6,12 +6,21 @@ from aiogram import Bot, Dispatcher
 from dotenv import load_dotenv
 
 from bot.handlers import router
-from bot.middlewares import EnsureUserMiddleware
+from bot.middlewares import EnsureUserMiddleware, AdminMiddleware, PermissionMiddleware
+from bot.setup import setup_commands
+
 from db import connect, EventRepo
 from db.user import UserRepo
+
 from logging_config import setup_logging
 
 log = logging.getLogger(__name__)
+
+ADMIN_IDS = []
+
+
+async def on_startup(bot: Bot) -> None:
+    await setup_commands(bot, ADMIN_IDS)
 
 
 async def main():
@@ -25,7 +34,13 @@ async def main():
     bot = Bot(token=os.environ["BOT_TOKEN"])
     dp = Dispatcher()
     dp.include_router(router)
+
     dp.update.outer_middleware(EnsureUserMiddleware())
+    dp.update.outer_middleware(AdminMiddleware(ADMIN_IDS))
+
+    dp.message.middleware(PermissionMiddleware())
+
+    dp.startup.register(on_startup)
 
     try:
         await dp.start_polling(bot, event_repo=event_repo, user_repo=user_repo)
