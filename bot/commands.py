@@ -26,6 +26,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec("add_events", "Upload an .ics timetable", group="Schedule"),
     CommandSpec("today", "Schedule for today", group="Schedule"),
     CommandSpec("week", "Schedule for this week", group="Schedule"),
+    CommandSpec("remind", "Set reminder lead time in minutes", group="Schedule"),
     CommandSpec("stats", "Usage statistics", group="Admin", access=Access.ADMIN),
     CommandSpec("debug", "Dump internal state", hidden=True),
 )

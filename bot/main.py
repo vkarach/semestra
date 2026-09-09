@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from bot.handlers import router
 from bot.middlewares import EnsureUserMiddleware, AdminMiddleware, PermissionMiddleware
 from bot.setup import setup_commands
+from bot.notifier import setup_notifier
 
 from db import connect, EventRepo
 from db.user import UserRepo
@@ -42,10 +43,14 @@ async def main():
 
     dp.startup.register(on_startup)
 
+    scheduler = setup_notifier(bot, event_repo=event_repo, user_repo=user_repo)
+    scheduler.start()
+
     try:
         await dp.start_polling(bot, event_repo=event_repo, user_repo=user_repo)
     finally:
         await conn.close()
+        scheduler.shutdown(wait=False)
         log.info("shut down")
 
 

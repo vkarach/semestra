@@ -1,12 +1,12 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from itertools import groupby
-from zoneinfo import ZoneInfo
 from aiogram import Router
-from aiogram.filters import Command
+from aiogram.filters import Command, CommandObject
 from aiogram.utils.formatting import Bold, Text, as_marked_section
 from aiogram.types import Message
 
+import clock
 from db import EventRepo, UserRepo
 from models import Event
 
@@ -20,41 +20,50 @@ GLYPH = {"done": " ✓", "now": " >", "upcoming": " !"}
 @router.message(Command("week"))
 async def cmd_week(message: Message, user_repo: UserRepo, event_repo: EventRepo):
     assert message.from_user
-    events = await get_events(message, event_repo)
-    if not events:
-        return
-    now = await get_timezone(message, user_repo)
+    now = await get_now(message, user_repo)
     if not now:
         return
-
-    for section in format_schedule(events, now):
-        await message.answer(**section.as_kwargs())
+    start = day_start(now) - timedelta(days=now.weekday())
+    await send_schedule(message, event_repo, now, start, start + timedelta(days=7))
 
 
 @router.message(Command("today"))
 async def cmd_today(message: Message, user_repo: UserRepo, event_repo: EventRepo):
     assert message.from_user
-    events = await get_events(message, event_repo)
-    if not events:
-        return
-
-    now = await get_timezone(message, user_repo)
+    now = await get_now(message, user_repo)
     if not now:
         return
-    today = [e for e in events if e.start_dt.weekday() == now.weekday()]
-    for section in format_schedule(today, now):
+    start = day_start(now)
+    await send_schedule(message, event_repo, now, start, start + timedelta(days=1))
+
+
+@router.message(Command("remind"))
+async def cmd_remind(message: Message, command: CommandObject, user_repo: UserRepo):
+    assert message.from_user
+    arg = (command.args or "").strip()
+    if not arg.isdigit() or not 1 <= int(arg) <= 1440:
+        await message.answer("Usage: /remind <minutes>, 1-1440")
+        return
+    await user_repo.set_remind_before(message.from_user.id, int(arg))
+    await message.answer(f"Reminders will arrive {arg} min before each event")
+
+
+def day_start(now: datetime) -> datetime:
+    return now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+async def send_schedule(message: Message, event_repo: EventRepo, now: datetime,
+                        start: datetime, end: datetime):
+    events = await event_repo.select_events(message.from_user.id, start, end)
+    if not events:
+        log.info("user %s: schedule request with no events in range", message.from_user.id)
+        await message.answer("Nothing scheduled here, /add_events first")
+        return
+    for section in format_schedule(events, now):
         await message.answer(**section.as_kwargs())
 
 
-async def get_events(message, event_repo: EventRepo) -> list[Event]:
-    events = await event_repo.select_events(message.from_user.id)
-    if not events:
-        log.info("user %s: schedule request with no stored events", message.from_user.id)
-        await message.answer("Nothing stored yet, /add_events first")
-    return events
-
-
-async def get_timezone(message: Message, user_repo: UserRepo)-> datetime | None:
+async def get_now(message: Message, user_repo: UserRepo) -> datetime | None:
     assert message.from_user
     tz_str = await user_repo.get_timezone(message.from_user.id)
     if not tz_str:
@@ -62,16 +71,13 @@ async def get_timezone(message: Message, user_repo: UserRepo)-> datetime | None:
         await message.answer("No timezone :( contact developer @karachv")
         return None
 
-    return datetime.now(ZoneInfo(tz_str)).replace(tzinfo=None)
+    return clock.now(tz_str)
 
 
 def status(e: Event, now: datetime) -> str:
-    start = (e.start_dt.weekday(), e.start_dt.time())
-    end = (e.start_dt.weekday(), e.end_dt.time())
-    cur = (now.weekday(), now.time())
-    if end <= cur:
+    if e.end_dt <= now:
         return "done"
-    if start <= cur:
+    if e.start_dt <= now:
         return "now"
     return "upcoming"
 

@@ -8,12 +8,15 @@ class EventType(Enum):
 
 
 class Event:
-    def __init__(self, name: str, event_type: EventType, start: datetime, end: datetime):
+    def __init__(self, name: str, event_type: EventType, start: datetime, end: datetime,
+                 id: int | None = None, notified_at: datetime | None = None):
+        self.id = id
         self.name: str = name
         self.type: EventType = event_type
         self.day = start.strftime("%A")
         self.start_dt: datetime = start
         self.end_dt: datetime = end
+        self.notified_at = notified_at
 
 
     def __str__(self):

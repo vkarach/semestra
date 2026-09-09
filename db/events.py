@@ -23,8 +23,11 @@ class EventRepo:
         "DELETE FROM events WHERE user_id = ? AND import_id != ?"
     )
     _SELECT_EVENTS = (
-        "SELECT name, type, starts_at, ends_at FROM events WHERE user_id = ? AND 1"
+        "SELECT rowid, name, type, starts_at, ends_at, notified_at FROM events "
+        "WHERE user_id = ? AND starts_at >= ? AND starts_at < ? "
+        "ORDER BY starts_at"
     )
+    _MARK_NOTIFIED = "UPDATE events SET notified_at = ? WHERE rowid = ?"
 
 
     def __init__(self, conn):
@@ -52,16 +55,23 @@ class EventRepo:
         log.info("user %s: upserted %d events, pruned %d stale", user_id, len(rows), cursor.rowcount)
 
 
-    async def select_events(self, user_id: int):
-        async with self._conn.execute(self._SELECT_EVENTS, (user_id,)) as cursor:
+    async def select_events(self, user_id: int, start: datetime, end: datetime):
+        params = (user_id, start.isoformat(), end.isoformat())
+        async with self._conn.execute(self._SELECT_EVENTS, params) as cursor:
             rows = await cursor.fetchall()
-        log.debug("user %s: selected %d events", user_id, len(rows))
+        log.debug("user %s: selected %d events in [%s, %s)", user_id, len(rows), start, end)
         return [
             Event(
-                name=row[0],
-                event_type=EventType[row[1]],
-                start=datetime.fromisoformat(row[2]),
-                end=datetime.fromisoformat(row[3]),
+                id=row[0],
+                name=row[1],
+                event_type=EventType[row[2]],
+                start=datetime.fromisoformat(row[3]),
+                end=datetime.fromisoformat(row[4]),
+                notified_at=datetime.fromisoformat(row[5]) if row[5] else None,
             )
             for row in rows
         ]
+
+    async def mark_notified(self, event_id: int, when: datetime):
+        await self._conn.execute(self._MARK_NOTIFIED, (when.isoformat(), event_id))
+        await self._conn.commit()

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import argparse
 import logging
@@ -33,6 +34,28 @@ def _extract_timezone(cal: Calendar) -> str | None:
     return None
 
 
+def _weekly_occurrences(start: datetime, rrule) -> list[datetime]:
+    if not rrule:
+        return [start]
+    if rrule.get("FREQ", ["WEEKLY"])[0] != "WEEKLY":
+        log.warning("unsupported RRULE FREQ %r, keeping single occurrence", rrule.get("FREQ"))
+        return [start]
+
+    until = rrule.get("UNTIL", [None])[0]
+    if isinstance(until, datetime):
+        until = until.replace(tzinfo=None)
+    if until is None:
+        log.warning("weekly RRULE without UNTIL, keeping single occurrence")
+        return [start]
+
+    step = timedelta(weeks=int(rrule.get("INTERVAL", [1])[0]))
+    out, cur = [], start
+    while cur <= until:
+        out.append(cur)
+        cur += step
+    return out
+
+
 def parse_ics(raw: bytes) -> ParsedTimetable:
     cal = Calendar.from_ical(raw)
 
@@ -50,12 +73,12 @@ def parse_ics(raw: bytes) -> ParsedTimetable:
         try:
             end_dt = component.get("DTEND").dt
         except AttributeError:
-            # end_dt = start_dt + component.get("DURATION").dt
             skipped += 1
             continue
 
-        event = Event(event_name, event_type, start_dt, end_dt)
-        events.append(event)
+        duration = end_dt - start_dt
+        for occ_start in _weekly_occurrences(start_dt, component.get("RRULE")):
+            events.append(Event(event_name, event_type, occ_start, occ_start + duration))
 
     log.info("parsed %d events, skipped %d without DTEND", len(events), skipped)
     return ParsedTimetable(tz_str, events)
