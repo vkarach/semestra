@@ -17,16 +17,15 @@ from logging_config import setup_logging
 
 log = logging.getLogger(__name__)
 
-ADMIN_IDS = []
-
-
-async def on_startup(bot: Bot) -> None:
-    await setup_commands(bot, ADMIN_IDS)
-
 
 async def main():
     setup_logging()
     load_dotenv()
+
+    admin_ids = [int(x) for x in os.environ["ADMIN_IDS"].split(",") if x.strip()]
+
+    async def on_startup(bot: Bot) -> None:
+        await setup_commands(bot, admin_ids)
 
     conn = await connect()
     event_repo = EventRepo(conn)
@@ -37,7 +36,7 @@ async def main():
     dp.include_router(router)
 
     dp.update.outer_middleware(EnsureUserMiddleware())
-    dp.update.outer_middleware(AdminMiddleware(ADMIN_IDS))
+    dp.update.outer_middleware(AdminMiddleware(admin_ids))
 
     dp.message.middleware(PermissionMiddleware())
 

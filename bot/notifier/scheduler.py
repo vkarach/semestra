@@ -25,6 +25,7 @@ async def check_reminders(bot: Bot, event_repo: EventRepo, user_repo: UserRepo) 
                 user_id,
                 f"{e.name} ({e.type.value}) in {mins} min, starts {e.start_dt:%H:%M}",
             )
+            assert e.id
             await event_repo.mark_notified(e.id, now)
 
 
