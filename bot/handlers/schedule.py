@@ -17,8 +17,8 @@ router = Router()
 GLYPH = {"done": " ✓", "now": " >", "upcoming": " !"}
 
 
-@router.message(Command("list"))
-async def cmd_list(message: Message, user_repo: UserRepo, event_repo: EventRepo):
+@router.message(Command("week"))
+async def cmd_week(message: Message, user_repo: UserRepo, event_repo: EventRepo):
     assert message.from_user
     events = await get_events(message, event_repo)
     if not events:
@@ -49,7 +49,7 @@ async def cmd_today(message: Message, user_repo: UserRepo, event_repo: EventRepo
 async def get_events(message, event_repo: EventRepo) -> list[Event]:
     events = await event_repo.select_events(message.from_user.id)
     if not events:
-        log.info("user %s: /list with no stored events", message.from_user.id)
+        log.info("user %s: schedule request with no stored events", message.from_user.id)
         await message.answer("Nothing stored yet, /add_events first")
     return events
 
