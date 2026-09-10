@@ -8,7 +8,7 @@ log = logging.getLogger(__name__)
 
 _NOW_ENV = "SEMESTRA_CLOCK_NOW"
 _OFFSET_ENV = "SEMESTRA_CLOCK_OFFSET"
-_OFFSET_RE = re.compile(r"(-)?(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?")
+_OFFSET_RE = re.compile(r"([+-])?(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?")
 
 _offset: timedelta | None = None
 
@@ -23,7 +23,7 @@ def _parse_offset(raw: str) -> timedelta:
     sign, d, h, mi, s = m.groups()
     delta = timedelta(days=int(d or 0), hours=int(h or 0),
                       minutes=int(mi or 0), seconds=int(s or 0))
-    return -delta if sign else delta
+    return -delta if sign == "-" else delta
 
 
 def _compute_offset() -> timedelta:
