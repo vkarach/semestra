@@ -99,8 +99,6 @@ def status(e: Event, now: datetime) -> str:
 
 def format_time_until(delta: timedelta) -> str:
     total_minutes = -(-int(delta.total_seconds()) // 60)
-    if total_minutes <= 0:
-        return "now"
     days, rem = divmod(total_minutes, 24 * 60)
     hours, minutes = divmod(rem, 60)
     if days:
@@ -121,8 +119,10 @@ def format_event(e: Event, now: datetime, with_glyph: bool = True) -> Text:
 
 
 def format_next(e: Event, now: datetime) -> Text:
+    delta = e.start_dt - now
+    header = "Starting now" if delta < timedelta(minutes=1) else f"Next up in {format_time_until(delta)}"
     return Text(
-        Bold(f"Next up in {format_time_until(e.start_dt - now)}"), "\n\n",
+        Bold(header), "\n\n",
         Bold(e.name), "\n",
         f"{e.type.value} - {e.start_dt:%a %d %b}, {e.start_dt:%H:%M}-{e.end_dt:%H:%M}",
     )
