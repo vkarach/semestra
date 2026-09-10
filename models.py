@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
@@ -25,3 +26,11 @@ class Event:
 
     def __repr__(self):
         return self.__str__()
+
+
+@dataclass
+class User:
+    id: int
+    timezone: str
+    remind_before: int | None
+    start_notice: bool

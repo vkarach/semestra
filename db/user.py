@@ -1,5 +1,6 @@
 import logging
 
+from models import User
 
 log = logging.getLogger(__name__)
 
@@ -10,7 +11,7 @@ class UserRepo:
     _GET_USER_TIMEZONE = "SELECT timezone FROM users WHERE user_id = ?"
     _UPDATE_REMIND_BEFORE = "UPDATE users SET remind_before = ? WHERE user_id = ?"
     _LIST_USERS = (
-        "SELECT user_id, timezone, remind_before FROM users WHERE timezone IS NOT NULL"
+        "SELECT user_id, timezone, remind_before, start_notice FROM users WHERE timezone IS NOT NULL"
     )
 
     def __init__(self, conn):
@@ -40,7 +41,10 @@ class UserRepo:
         await self._conn.commit()
 
 
-    async def list_users(self) -> list[tuple[int, str, int | None]]:
+    async def list_users(self) -> list[User]:
         async with self._conn.execute(self._LIST_USERS) as cursor:
             rows = await cursor.fetchall()
-            return [(r["user_id"], r["timezone"], r["remind_before"]) for r in rows]
+            return [
+                User(r["user_id"], r["timezone"], r["remind_before"], bool(r["start_notice"]))
+                for r in rows
+            ]

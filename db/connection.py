@@ -14,6 +14,7 @@ DB_PATH = DB_DIR / "semestra.db"
 _MIGRATIONS = (
     ("users", "remind_before", "INTEGER"),
     ("events", "notified_at", "TEXT"),
+    ("users", "start_notice", "INTEGER NOT NULL DEFAULT 1"),
 )
 
 
