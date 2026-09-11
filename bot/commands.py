@@ -28,8 +28,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec("today", "Schedule for today", group="Schedule"),
     CommandSpec("week", "Schedule for this week", group="Schedule"),
     CommandSpec("remind", "Set reminder lead time in minutes", group="Schedule"),
-    CommandSpec("stats", "Usage statistics", group="Admin", access=Access.ADMIN),
-    CommandSpec("debug", "Dump internal state", hidden=True),
+    CommandSpec("admin_info", "Usage statistics", group="Admin", access=Access.ADMIN),
 )
 
 

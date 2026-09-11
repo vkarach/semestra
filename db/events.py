@@ -47,6 +47,7 @@ class EventRepo:
         "ORDER BY starts_at LIMIT 1"
     )
     _MARK_NOTIFIED = "UPDATE events SET notified_at = ? WHERE rowid = ?"
+    _COUNT_EVENTS = "SELECT COUNT(*) FROM events"
 
 
     def __init__(self, conn):
@@ -105,3 +106,9 @@ class EventRepo:
     async def mark_notified(self, event_id: int, when: datetime):
         await self._conn.execute(self._MARK_NOTIFIED, (when.isoformat(), event_id))
         await self._conn.commit()
+
+
+    async def count_events(self) -> int:
+        async with self._conn.execute(self._COUNT_EVENTS) as cursor:
+            row = await cursor.fetchone()
+            return row[0]

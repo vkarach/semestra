@@ -16,8 +16,3 @@ async def cmd_start(message: Message):
 async def cmd_help(message: Message, is_admin: bool) -> None:
     section = help_content(admin=is_admin)
     await message.answer(**section.as_kwargs())
-
-
-@router.message(Command("stats"))
-async def cmd_stats(message: Message) -> None:
-    await message.answer("Testik :)")

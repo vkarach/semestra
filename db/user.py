@@ -13,6 +13,8 @@ class UserRepo:
     _LIST_USERS = (
         "SELECT user_id, timezone, remind_before, start_notice FROM users WHERE timezone IS NOT NULL"
     )
+    _COUNT_USERS = "SELECT COUNT(*) FROM users"
+    _COUNT_USERS_WITH_TIMEZONE = "SELECT COUNT(*) FROM users WHERE timezone IS NOT NULL"
 
     def __init__(self, conn):
         self._conn = conn
@@ -39,6 +41,18 @@ class UserRepo:
     async def set_remind_before(self, user_id: int, minutes: int):
         await self._conn.execute(self._UPDATE_REMIND_BEFORE, (minutes, user_id))
         await self._conn.commit()
+
+
+    async def count_users(self) -> int:
+        async with self._conn.execute(self._COUNT_USERS) as cursor:
+            row = await cursor.fetchone()
+            return row[0]
+
+
+    async def count_users_with_timezone(self) -> int:
+        async with self._conn.execute(self._COUNT_USERS_WITH_TIMEZONE) as cursor:
+            row = await cursor.fetchone()
+            return row[0]
 
 
     async def list_users(self) -> list[User]:
