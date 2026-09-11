@@ -23,11 +23,15 @@ class CommandSpec:
 COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec("start", "Start the bot"),
     CommandSpec("help", "Show all commands"),
+
     CommandSpec("add_events", "Upload an .ics timetable", group="Schedule"),
     CommandSpec("next", "See next event", group="Schedule"),
     CommandSpec("today", "Schedule for today", group="Schedule"),
     CommandSpec("week", "Schedule for this week", group="Schedule"),
     CommandSpec("remind", "Set reminder lead time in minutes", group="Schedule"),
+
+    CommandSpec("ics_help", "Information about ics, where get it", group="Help"),
+
     CommandSpec("admin_info", "Usage statistics", group="Admin", access=Access.ADMIN),
 )
 

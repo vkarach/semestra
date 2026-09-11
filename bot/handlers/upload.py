@@ -4,7 +4,7 @@ from aiogram import Router, F, Bot
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.utils.formatting import Bold, Italic, Text
+from aiogram.utils.formatting import Text, Code
 from aiogram.types import (
     Message,
     CallbackQuery,
@@ -48,7 +48,7 @@ async def choose_mode(callback: CallbackQuery, state: FSMContext):
     await state.update_data(replace=replace)
     await state.set_state(Upload.waiting_file)
     mode = "Replace" if replace else "Merge"
-    content = Text(mode, " mode. Now send the ", Italic(Bold(".ics")), " file")
+    content = Text(mode, " mode. Now send the ", Code(".ics"), " file. For help /ics_help")
     await callback.message.edit_text(**content.as_kwargs())
     await callback.answer()
 
