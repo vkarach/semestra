@@ -7,12 +7,19 @@ log = logging.getLogger(__name__)
 
 class UserRepo:
     _INSERT_USER = "INSERT INTO users (user_id) VALUES (?) ON CONFLICT DO NOTHING"
+
     _UPDATE_USER_TIMEZONE = "UPDATE users SET timezone = ? WHERE user_id = ?"
-    _GET_USER_TIMEZONE = "SELECT timezone FROM users WHERE user_id = ?"
     _UPDATE_REMIND_BEFORE = "UPDATE users SET remind_before = ? WHERE user_id = ?"
+    _TOGGLE_START_NOTICE = (
+        "UPDATE users SET start_notice = NOT start_notice WHERE user_id = ? RETURNING start_notice"
+    )
+
+    _GET_USER_TIMEZONE = "SELECT timezone FROM users WHERE user_id = ?"
+
     _LIST_USERS = (
         "SELECT user_id, timezone, remind_before, start_notice FROM users WHERE timezone IS NOT NULL"
     )
+
     _COUNT_USERS = "SELECT COUNT(*) FROM users"
     _COUNT_USERS_WITH_TIMEZONE = "SELECT COUNT(*) FROM users WHERE timezone IS NOT NULL"
 
@@ -36,6 +43,13 @@ class UserRepo:
         async with self._conn.execute(self._GET_USER_TIMEZONE, (user_id,)) as cursor:
             row = await cursor.fetchone()
             return row["timezone"] if row else None
+
+
+    async def toggle_start_notice(self, user_id: int) -> bool:
+        async with self._conn.execute(self._TOGGLE_START_NOTICE, (user_id,)) as cursor:
+            row = await cursor.fetchone()
+        await self._conn.commit()
+        return bool(row["start_notice"])
 
 
     async def set_remind_before(self, user_id: int, minutes: int):

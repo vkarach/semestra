@@ -63,6 +63,13 @@ async def cmd_remind(message: Message, command: CommandObject, user_repo: UserRe
     await message.answer(f"Reminders will arrive {arg} min before each event")
 
 
+@router.message(Command("start_notice"))
+async def cmd_start_notice(message: Message, user_repo: UserRepo):
+    assert message.from_user
+    enabled = await user_repo.toggle_start_notice(message.from_user.id)
+    await message.answer(f"Start notice is turned {'on' if enabled else 'off'}")
+
+
 def day_start(now: datetime) -> datetime:
     return now.replace(hour=0, minute=0, second=0, microsecond=0)
 
