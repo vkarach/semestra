@@ -4,8 +4,10 @@ from enum import Enum
 
 
 class EventType(Enum):
-    CVICENIE = "Cvičenie"
-    PREDNASKA = "Prednáška"
+    CVICENIE = "CV"
+    PREDNASKA = "P"
+    SEMINAR = "S"
+    UNKNOWN = "UNK"
 
 
 class Event:

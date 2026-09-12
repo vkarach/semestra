@@ -67,7 +67,15 @@ def parse_ics(raw: bytes) -> ParsedTimetable:
         summary = str(component.get("SUMMARY"))
 
         event_name = summary.split('(')[0].strip()
-        event_type = EventType.CVICENIE if "Cvičenie" in summary else EventType.PREDNASKA
+        if "Cvičenie" in summary:
+            event_type = EventType.CVICENIE
+        elif "Prednáška" in summary:
+            event_type = EventType.PREDNASKA
+        elif "Seminár" in summary:
+            event_type = EventType.SEMINAR
+        else:
+            event_type = EventType.UNKNOWN
+
         start_dt = component.get("DTSTART").dt
 
         try:
