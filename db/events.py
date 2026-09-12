@@ -36,6 +36,9 @@ class EventRepo:
     _DELETE_STALE_FUTURE = (
         "DELETE FROM events WHERE user_id = ? AND import_id != ? AND starts_at > ?"
     )
+    _HAS_EVENTS = (
+        "SELECT 1 FROM events WHERE user_id = ?"
+    )
     _SELECT_EVENTS = (
         "SELECT rowid, name, type, starts_at, ends_at, notified_at FROM events "
         "WHERE user_id = ? AND starts_at >= ? AND starts_at < ? "
@@ -83,6 +86,12 @@ class EventRepo:
         await self._conn.commit()
         log.info("user %s: upserted %d events, replace=%s pruned %d",
                  user_id, len(rows), replace, pruned)
+
+
+    async def has_events(self, user_id: int) -> bool:
+        async with self._conn.execute(self._HAS_EVENTS, (user_id, )) as cursor:
+            row = await cursor.fetchone()
+            return bool(row[0]) if row else False
 
 
     async def select_events(self, user_id: int, start: datetime, end: datetime) -> list[Event]:
