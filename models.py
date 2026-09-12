@@ -16,14 +16,13 @@ class Event:
         self.id = id
         self.name: str = name
         self.type: EventType = event_type
-        self.day = start.strftime("%A")
         self.start_dt: datetime = start
         self.end_dt: datetime = end
         self.notified_at = notified_at
 
 
     def __str__(self):
-        return f"{self.name} ({self.type.value}): {self.day} {self.start_dt.strftime('%H:%M')}-{self.end_dt.strftime('%H:%M')}"
+        return f"{self.name} ({self.type.value}): {self.start_dt:%A %H:%M}-{self.end_dt:%H:%M}"
 
 
     def __repr__(self):

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from itertools import groupby
 
 from aiogram.utils.formatting import Bold, Text, as_marked_section
@@ -57,9 +57,9 @@ def format_nothing_ahead(label: str | None = None) -> Text:
     return Text(f"No events {label}, and nothing ahead either")
 
 
-def format_section(day: str, day_events: list[Event], now, with_glyph: bool = True) -> Text:
+def format_section(day: date, day_events: list[Event], now, with_glyph: bool = True) -> Text:
     return as_marked_section(
-        Bold(day),
+        Bold(f"{day:%A}, {day:%d %b}"),
         *[format_event(e, now, with_glyph) for e in day_events],
         marker="",
     )
@@ -68,5 +68,5 @@ def format_section(day: str, day_events: list[Event], now, with_glyph: bool = Tr
 def format_schedule(events: list[Event], now, with_glyph: bool = True) -> list[Text]:
     return [
         format_section(day, list(day_events), now, with_glyph)
-        for day, day_events in groupby(events, key=lambda e: e.day)
+        for day, day_events in groupby(events, key=lambda e: e.start_dt.date())
     ]
