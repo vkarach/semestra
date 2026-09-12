@@ -23,6 +23,7 @@ class CommandSpec:
 COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec("start", "Start the bot"),
     CommandSpec("help", "Show all commands"),
+    CommandSpec("cancel", "Cancel the current operation"),
 
     CommandSpec("add_events", "Upload an .ics timetable", group="Schedule"),
     CommandSpec("schedule", "Upcoming events for the next 7 days", group="Schedule"),
