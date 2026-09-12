@@ -14,11 +14,26 @@ log = logging.getLogger(__name__)
 
 router = Router()
 
-GLYPH = {"done": " ✓", "now": " >", "upcoming": " !"}
+GLYPH = {"done": "✓ ", "now": "> ", "upcoming": "! "}
+
+
+@router.message(Command("schedule"))
+async def cmd_schedule(message: Message, user_repo: UserRepo, event_repo: EventRepo) -> None:
+    assert message.from_user
+    now = await get_now(message, user_repo)
+    if not now:
+        return
+    next_event = await event_repo.select_next_event(message.from_user.id, now)
+    if not next_event:
+        log.info("user %s: /schedule with no upcoming events", message.from_user.id)
+        await message.answer("Nothing ahead, /add_events first")
+        return
+    await send_schedule(message, event_repo, now, next_event.start_dt, next_event.start_dt + timedelta(days=7),
+                        with_glyph=False)
 
 
 @router.message(Command("week"))
-async def cmd_week(message: Message, user_repo: UserRepo, event_repo: EventRepo):
+async def cmd_week(message: Message, user_repo: UserRepo, event_repo: EventRepo) -> None:
     assert message.from_user
     now = await get_now(message, user_repo)
     if not now:
@@ -28,7 +43,7 @@ async def cmd_week(message: Message, user_repo: UserRepo, event_repo: EventRepo)
 
 
 @router.message(Command("today"))
-async def cmd_today(message: Message, user_repo: UserRepo, event_repo: EventRepo):
+async def cmd_today(message: Message, user_repo: UserRepo, event_repo: EventRepo) -> None:
     assert message.from_user
     now = await get_now(message, user_repo)
     if not now:
@@ -38,7 +53,7 @@ async def cmd_today(message: Message, user_repo: UserRepo, event_repo: EventRepo
 
 
 @router.message(Command("next"))
-async def next_cmd(message: Message, user_repo: UserRepo, event_repo: EventRepo):
+async def next_cmd(message: Message, user_repo: UserRepo, event_repo: EventRepo) -> None:
     assert message.from_user
     now = await get_now(message, user_repo)
     if not now:
@@ -53,7 +68,7 @@ async def next_cmd(message: Message, user_repo: UserRepo, event_repo: EventRepo)
 
 
 @router.message(Command("remind"))
-async def cmd_remind(message: Message, command: CommandObject, user_repo: UserRepo):
+async def cmd_remind(message: Message, command: CommandObject, user_repo: UserRepo) -> None:
     assert message.from_user
     arg = (command.args or "").strip()
     if not arg.isdigit() or not 1 <= int(arg) <= 1440:
@@ -64,7 +79,7 @@ async def cmd_remind(message: Message, command: CommandObject, user_repo: UserRe
 
 
 @router.message(Command("start_notice"))
-async def cmd_start_notice(message: Message, user_repo: UserRepo):
+async def cmd_start_notice(message: Message, user_repo: UserRepo) -> None:
     assert message.from_user
     enabled = await user_repo.toggle_start_notice(message.from_user.id)
     await message.answer(f"Start notice is turned {'on' if enabled else 'off'}")
@@ -75,13 +90,13 @@ def day_start(now: datetime) -> datetime:
 
 
 async def send_schedule(message: Message, event_repo: EventRepo, now: datetime,
-                        start: datetime, end: datetime):
+                        start: datetime, end: datetime, with_glyph: bool = True) -> None:
     events = await event_repo.select_events(message.from_user.id, start, end)
     if not events:
         log.info("user %s: schedule request with no events in range", message.from_user.id)
         await message.answer("Nothing scheduled here, /add_events first")
         return
-    for section in format_schedule(events, now):
+    for section in format_schedule(events, now, with_glyph):
         await message.answer(**section.as_kwargs())
 
 
@@ -116,13 +131,11 @@ def format_time_until(delta: timedelta) -> str:
 
 
 def format_event(e: Event, now: datetime, with_glyph: bool = True) -> Text:
-    text = Text(
-        Bold(e.name), f" ({e.type.value}) ",
-        f"{e.start_dt:%H:%M}-{e.end_dt:%H:%M}"
+    return Text(
+        GLYPH[status(e, now)] if with_glyph else "",
+        Bold(f"{e.start_dt:%H:%M}-{e.end_dt:%H:%M}"), " ",
+        e.name, f" ({e.type.value})",
     )
-    if with_glyph:
-        text += GLYPH[status(e, now)]
-    return text
 
 
 def format_next(e: Event, now: datetime) -> Text:
@@ -135,16 +148,16 @@ def format_next(e: Event, now: datetime) -> Text:
     )
 
 
-def format_section(day: str, day_events: list[Event], now) -> Text:
+def format_section(day: str, day_events: list[Event], now, with_glyph: bool = True) -> Text:
     return as_marked_section(
         Bold(day),
-        *[format_event(e, now) for e in day_events],
-        marker="- ",
+        *[format_event(e, now, with_glyph) for e in day_events],
+        marker="",
     )
 
 
-def format_schedule(events: list[Event], now) -> list[Text]:
+def format_schedule(events: list[Event], now, with_glyph: bool = True) -> list[Text]:
     return [
-        format_section(day, list(day_events), now)
+        format_section(day, list(day_events), now, with_glyph)
         for day, day_events in groupby(events, key=lambda e: e.day)
     ]
