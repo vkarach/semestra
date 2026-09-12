@@ -5,7 +5,7 @@ from aiogram.utils.formatting import Bold, Text, as_marked_section
 
 from models import Event
 
-GLYPH = {"done": "✓ ", "now": "> ", "upcoming": "! "}
+STATUS_MARK = {"done": " ✓", "now": " ▶", "upcoming": ""}
 
 NO_EVENTS_AT_ALL = Text("No events yet, send your timetable: /add_events")
 
@@ -29,11 +29,11 @@ def format_time_until(delta: timedelta) -> str:
     return f"{minutes}m"
 
 
-def format_event(e: Event, now: datetime, with_glyph: bool = True) -> Text:
+def format_event(e: Event, now: datetime, with_status: bool = True) -> Text:
     return Text(
-        GLYPH[status(e, now)] if with_glyph else "",
         Bold(f"{e.start_dt:%H:%M}-{e.end_dt:%H:%M}"), " ",
         e.name, f" ({e.type.value})",
+        STATUS_MARK[status(e, now)] if with_status else "",
     )
 
 
@@ -57,16 +57,16 @@ def format_nothing_ahead(label: str | None = None) -> Text:
     return Text(f"No events {label}, and nothing ahead either")
 
 
-def format_section(day: date, day_events: list[Event], now, with_glyph: bool = True) -> Text:
+def format_section(day: date, day_events: list[Event], now, with_status: bool = True) -> Text:
     return as_marked_section(
         Bold(f"{day:%A}, {day:%d %b}"),
-        *[format_event(e, now, with_glyph) for e in day_events],
+        *[format_event(e, now, with_status) for e in day_events],
         marker="",
     )
 
 
-def format_schedule(events: list[Event], now, with_glyph: bool = True) -> list[Text]:
+def format_schedule(events: list[Event], now, with_status: bool = True) -> list[Text]:
     return [
-        format_section(day, list(day_events), now, with_glyph)
+        format_section(day, list(day_events), now, with_status)
         for day, day_events in groupby(events, key=lambda e: e.start_dt.date())
     ]

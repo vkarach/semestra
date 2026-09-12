@@ -31,7 +31,7 @@ async def cmd_schedule(message: Message, user_repo: UserRepo, event_repo: EventR
         await send_nothing_ahead(message, event_repo)
         return
     await send_schedule(message, event_repo, now, next_event.start_dt, next_event.start_dt + timedelta(days=7),
-                        label="ahead", with_glyph=False)
+                        label="ahead", with_status=False)
 
 
 @router.message(Command("week"))
@@ -93,14 +93,14 @@ def day_start(now: datetime) -> datetime:
 
 async def send_schedule(message: Message, event_repo: EventRepo, now: datetime,
                         start: datetime, end: datetime, *, label: str,
-                        with_glyph: bool = True) -> None:
+                        with_status: bool = True) -> None:
     assert message.from_user
     events = await event_repo.select_events(message.from_user.id, start, end)
     if not events:
         log.info("user %s: schedule request with no events in range", message.from_user.id)
         await send_no_events(message, event_repo, now, label)
         return
-    for section in format_schedule(events, now, with_glyph):
+    for section in format_schedule(events, now, with_status):
         await message.answer(**section.as_kwargs())
 
 
