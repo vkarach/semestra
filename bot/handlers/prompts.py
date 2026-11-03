@@ -19,8 +19,6 @@ log = logging.getLogger(__name__)
 
 router = Router()
 
-ALIAS_MAX_LEN = 24
-
 
 class Prompt(StatesGroup):
     text = State()
@@ -68,12 +66,7 @@ async def _store(target: Target, user_id: int, value: str | None,
 
 
 def _validate(kind: str, text: str) -> str:
-    if kind != "alias":
-        return notes.normalize(text)
-    alias = text.strip()
-    if "\n" in alias or not 1 <= len(alias) <= ALIAS_MAX_LEN:
-        raise notes.NoteError(f"A shortcut is one line of 1-{ALIAS_MAX_LEN} characters")
-    return alias
+    return notes.normalize_alias(text) if kind == "alias" else notes.normalize(text)
 
 
 async def _pending(state: FSMContext) -> tuple[Target, int] | None:

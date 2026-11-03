@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
 MAX_LEN = 1000
+ALIAS_MAX_LEN = 24
 
 _FIELD_RE = re.compile(r"(?P<key>[^\W\d_][^:/\n]{0,31}?)\s*:\s*(?P<value>\S.*)")
 
@@ -65,6 +66,13 @@ def normalize(text: str) -> str:
     if len(result) > MAX_LEN:
         raise NoteError(f"Too long: {len(result)} characters, the limit is {MAX_LEN}")
     return result
+
+
+def normalize_alias(text: str) -> str:
+    alias = text.strip()
+    if "\n" in alias or not 1 <= len(alias) <= ALIAS_MAX_LEN:
+        raise NoteError(f"A shortcut is one line of 1-{ALIAS_MAX_LEN} characters")
+    return alias
 
 
 def parse(text: str | None) -> ParsedNote:

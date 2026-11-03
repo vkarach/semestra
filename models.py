@@ -116,6 +116,13 @@ class Subject:
 
 
 @dataclass
+class SubjectEdit:
+    sets_alias: bool = False
+    alias: str | None = None
+    notes: dict[EventType | None, str | None] = field(default_factory=dict)
+
+
+@dataclass
 class User:
     id: int
     timezone: str | None

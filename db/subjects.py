@@ -2,7 +2,7 @@ import logging
 import sqlite3
 import unicodedata
 
-from models import EventType, Subject
+from models import EventType, Subject, SubjectEdit
 
 log = logging.getLogger(__name__)
 
@@ -14,6 +14,15 @@ class AliasTaken(Exception):
 def fold(text: str) -> str:
     decomposed = unicodedata.normalize("NFKD", text.casefold())
     return "".join(c for c in decomposed if not unicodedata.combining(c))
+
+
+def match(subjects: list[Subject], query: str) -> list[Subject]:
+    q = fold(query.strip())
+    for exact in ([s for s in subjects if s.alias and fold(s.alias) == q],
+                  [s for s in subjects if fold(s.name) == q]):
+        if exact:
+            return exact
+    return [s for s in subjects if q in fold(s.name) or (s.alias and q in fold(s.alias))]
 
 
 class SubjectRepo:
@@ -77,13 +86,7 @@ class SubjectRepo:
 
 
     async def find(self, user_id: int, query: str) -> list[Subject]:
-        q = fold(query.strip())
-        subjects = await self.list_subjects(user_id)
-        exact = [s for s in subjects if s.alias and fold(s.alias) == q]
-        if exact:
-            return exact
-        return [s for s in subjects
-                if q in fold(s.name) or (s.alias and q in fold(s.alias))]
+        return match(await self.list_subjects(user_id), query)
 
 
     async def set_alias(self, user_id: int, subject_id: int, alias: str | None):
@@ -109,6 +112,30 @@ class SubjectRepo:
                               note: str | None):
         await self._conn.execute(self._UPSERT_SERIES_NOTE,
                                  (event_type.name, note, subject_id, user_id))
+        await self._conn.commit()
+
+
+    async def apply_edits(self, user_id: int, edits: dict[int, SubjectEdit]):
+        try:
+            # aliases are cleared first so a swap does not trip the unique index halfway
+            for subject_id, e in edits.items():
+                if e.sets_alias:
+                    await self._conn.execute(self._SET_ALIAS, (None, subject_id, user_id))
+            for subject_id, e in edits.items():
+                if e.sets_alias and e.alias:
+                    await self._conn.execute(self._SET_ALIAS, (e.alias, subject_id, user_id))
+                for scope, note in e.notes.items():
+                    if scope is None:
+                        await self._conn.execute(self._SET_NOTE, (note, subject_id, user_id))
+                    else:
+                        await self._conn.execute(self._UPSERT_SERIES_NOTE,
+                                                 (scope.name, note, subject_id, user_id))
+        except sqlite3.IntegrityError as e:
+            await self._conn.rollback()
+            raise AliasTaken() from e
+        except BaseException:
+            await self._conn.rollback()
+            raise
         await self._conn.commit()
 
 

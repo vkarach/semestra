@@ -8,6 +8,7 @@ from .schedule import router as schedule_router
 from .prompts import router as prompts_router, Prompt
 from .events import router as events_router
 from .subjects import router as subjects_router
+from .setup import router as setup_router
 from .settings import router as settings_router
 from .help import router as help_router
 from .admin import router as admin_router
@@ -26,6 +27,7 @@ router.include_router(schedule_router)
 router.include_router(prompts_router)
 router.include_router(events_router)
 router.include_router(subjects_router)
+router.include_router(setup_router)
 router.include_router(settings_router)
 router.include_router(help_router)
 router.include_router(admin_router)

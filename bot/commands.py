@@ -32,6 +32,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec("schedule", "Upcoming events for the next 7 days", group="Schedule"),
     CommandSpec("exams", "Upcoming exams with countdown", group="Schedule"),
     CommandSpec("subjects", "Shortcuts and notes for your subjects", group="Schedule"),
+    CommandSpec("setup", "Set shortcuts and notes for all subjects in one message", group="Schedule"),
     CommandSpec("add_events", "Upload an .ics timetable", group="Schedule"),
 
     CommandSpec("settings", "Show current settings", group="Settings"),

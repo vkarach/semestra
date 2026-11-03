@@ -73,6 +73,27 @@ host become link buttons on the card and on reminders. If Telegram still
 rejects a link, the message goes out without the link buttons instead of not
 at all.
 
+`/setup` does all of this in one message. Sent alone it answers with the current
+setup as text, one block per subject, ready to copy, edit and send back:
+
+```
+/setup
+[manazment]
+shortcut: MSP
+all: isi: https://isi.tuke.sk/...
+P: webex: https://tuke.webex.com/...
+CV: teams: https://teams.microsoft.com/...
+```
+
+A block starts with the subject in brackets, found the same way as by
+`/subjects`, and must match exactly one. Each line under it is a scope, a colon
+and one line of the note: `shortcut`, `all` for the whole subject, or a type
+(`P`, `CV`, `S`, `EXAM`, or `lectures`, `labs` and so on). Repeating a scope adds
+lines to the same note, an empty scope clears it, and a scope left out is not
+touched. The message is checked as a whole first: any bad line is reported with
+its number and nothing is saved, so a half-applied setup cannot happen. Shortcuts
+are cleared before they are set, which lets two subjects swap theirs in one go.
+
 Subjects are rows of their own, created on import and kept when a subject drops
 out of a timetable, so a shortcut and its notes come back with the subject next
 semester. Class notes and the cancelled flag sit on the event row, which an
