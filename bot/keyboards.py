@@ -5,7 +5,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 import notes
-from bot.formatting import event_button_text, merged_note, subject_button_text
+from bot.formatting import event_button_text, merged_note, series_label, subject_button_text
 from models import TYPE_PLURAL, Event, Subject
 
 MAX_LINK_BUTTONS = 8
@@ -102,6 +102,10 @@ def card_keyboard(e: Event) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="Restore class" if e.cancelled else "Mark cancelled",
                                  callback_data=EventCb(action="cancel", id=e.id).pack()),
         ],
+        [
+            InlineKeyboardButton(text="Unmute this class" if e.muted else "Mute this class",
+                                 callback_data=EventCb(action="mute", id=e.id).pack()),
+        ],
     ]
     return InlineKeyboardMarkup(inline_keyboard=link_rows(merged_note(e)) + rows)
 
@@ -122,11 +126,28 @@ def subject_keyboard(s: Subject) -> InlineKeyboardMarkup:
     for t in s.types:
         builder.button(text=f"Note: {TYPE_PLURAL[t].lower()}",
                        callback_data=SubjectCb(action="note", id=s.id, type=t.name))
+    builder.button(text="Reminders", callback_data=SubjectCb(action="mutes", id=s.id))
     builder.button(text="Pick a class", callback_data=SubjectCb(action="classes", id=s.id))
     builder.button(text="< All subjects", callback_data=SubjectCb(action="list", id=s.id))
     builder.adjust(2)
     for row in link_rows(notes.parse(s.note)):
         builder.row(*row)
+    return builder.as_markup()
+
+
+def _switch(on: bool) -> str:
+    return "on" if on else "off"
+
+
+def mutes_keyboard(s: Subject) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text=f"Whole subject: {_switch(not s.muted)}",
+                   callback_data=SubjectCb(action="mute", id=s.id))
+    for t in s.types:
+        builder.button(text=f"{series_label(t)}: {_switch(t not in s.muted_types)}",
+                       callback_data=SubjectCb(action="mute", id=s.id, type=t.name))
+    builder.button(text=f"< {s.title}"[:40], callback_data=SubjectCb(action="back", id=s.id))
+    builder.adjust(1)
     return builder.as_markup()
 
 

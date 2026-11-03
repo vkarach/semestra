@@ -21,7 +21,15 @@ _MIGRATIONS = (
     ("events", "description", "TEXT"),
     ("events", "note", "TEXT"),
     ("events", "cancelled", "INTEGER NOT NULL DEFAULT 0"),
+    ("events", "muted", "INTEGER NOT NULL DEFAULT 0"),
+    ("subjects", "muted", "INTEGER NOT NULL DEFAULT 0"),
 )
+
+
+async def _table_exists(conn: aiosqlite.Connection, table: str) -> bool:
+    query = "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?"
+    async with conn.execute(query, (table,)) as cursor:
+        return await cursor.fetchone() is not None
 
 
 async def _migrate(conn: aiosqlite.Connection) -> None:
@@ -31,6 +39,13 @@ async def _migrate(conn: aiosqlite.Connection) -> None:
         if column not in existing:
             await conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
             log.info("migrated: added %s.%s", table, column)
+    if await _table_exists(conn, "series_notes"):
+        await conn.execute(
+            "INSERT OR IGNORE INTO series (subject_id, type, note) "
+            "SELECT subject_id, type, note FROM series_notes"
+        )
+        await conn.execute("DROP TABLE series_notes")
+        log.info("migrated: series_notes -> series")
     cursor = await conn.execute(
         "INSERT OR IGNORE INTO subjects (user_id, name) SELECT DISTINCT user_id, name FROM events"
     )

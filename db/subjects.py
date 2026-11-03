@@ -18,25 +18,27 @@ def fold(text: str) -> str:
 
 class SubjectRepo:
     _LIST = (
-        "SELECT j.id, j.name, j.alias, j.note FROM subjects j "
+        "SELECT j.id, j.name, j.alias, j.note, j.muted FROM subjects j "
         "WHERE j.user_id = ? AND EXISTS "
         "(SELECT 1 FROM events e WHERE e.user_id = j.user_id AND e.name = j.name)"
     )
     _TYPES = "SELECT DISTINCT name, type FROM events WHERE user_id = ?"
     _SERIES = (
-        "SELECT s.subject_id, s.type, s.note FROM series_notes s "
+        "SELECT s.subject_id, s.type, s.note, s.muted FROM series s "
         "JOIN subjects j ON j.id = s.subject_id WHERE j.user_id = ?"
     )
     _SET_ALIAS = "UPDATE subjects SET alias = ? WHERE id = ? AND user_id = ?"
     _SET_NOTE = "UPDATE subjects SET note = ? WHERE id = ? AND user_id = ?"
-    _UPSERT_SERIES = (
-        "INSERT INTO series_notes (subject_id, type, note) "
+    _SET_MUTED = "UPDATE subjects SET muted = ? WHERE id = ? AND user_id = ?"
+    _UPSERT_SERIES_NOTE = (
+        "INSERT INTO series (subject_id, type, note) "
         "SELECT id, ?, ? FROM subjects WHERE id = ? AND user_id = ? "
         "ON CONFLICT (subject_id, type) DO UPDATE SET note = excluded.note"
     )
-    _DELETE_SERIES = (
-        "DELETE FROM series_notes WHERE type = ? AND subject_id = "
-        "(SELECT id FROM subjects WHERE id = ? AND user_id = ?)"
+    _UPSERT_SERIES_MUTED = (
+        "INSERT INTO series (subject_id, type, muted) "
+        "SELECT id, ?, ? FROM subjects WHERE id = ? AND user_id = ? "
+        "ON CONFLICT (subject_id, type) DO UPDATE SET muted = excluded.muted"
     )
 
     def __init__(self, conn):
@@ -51,15 +53,20 @@ class SubjectRepo:
             for name, type_name in await cursor.fetchall():
                 types.setdefault(name, []).append(EventType[type_name])
         async with self._conn.execute(self._SERIES, (user_id,)) as cursor:
-            series: dict[int, dict[EventType, str]] = {}
-            for subject_id, type_name, note in await cursor.fetchall():
-                series.setdefault(subject_id, {})[EventType[type_name]] = note
+            series_notes: dict[int, dict[EventType, str]] = {}
+            muted_types: dict[int, set[EventType]] = {}
+            for subject_id, type_name, note, muted in await cursor.fetchall():
+                if note:
+                    series_notes.setdefault(subject_id, {})[EventType[type_name]] = note
+                if muted:
+                    muted_types.setdefault(subject_id, set()).add(EventType[type_name])
 
         order = list(EventType)
         subjects = [
             Subject(id=r[0], name=r[1], alias=r[2], note=r[3],
-                    series_notes=series.get(r[0], {}),
-                    types=sorted(types.get(r[1], []), key=order.index))
+                    series_notes=series_notes.get(r[0], {}),
+                    types=sorted(types.get(r[1], []), key=order.index),
+                    muted=bool(r[4]), muted_types=muted_types.get(r[0], set()))
             for r in rows
         ]
         return sorted(subjects, key=lambda s: fold(s.title))
@@ -93,11 +100,20 @@ class SubjectRepo:
         await self._conn.commit()
 
 
+    async def set_muted(self, user_id: int, subject_id: int, muted: bool):
+        await self._conn.execute(self._SET_MUTED, (int(muted), subject_id, user_id))
+        await self._conn.commit()
+
+
     async def set_series_note(self, user_id: int, subject_id: int, event_type: EventType,
                               note: str | None):
-        if note is None:
-            await self._conn.execute(self._DELETE_SERIES, (event_type.name, subject_id, user_id))
-        else:
-            await self._conn.execute(self._UPSERT_SERIES,
-                                     (event_type.name, note, subject_id, user_id))
+        await self._conn.execute(self._UPSERT_SERIES_NOTE,
+                                 (event_type.name, note, subject_id, user_id))
+        await self._conn.commit()
+
+
+    async def set_series_muted(self, user_id: int, subject_id: int, event_type: EventType,
+                               muted: bool):
+        await self._conn.execute(self._UPSERT_SERIES_MUTED,
+                                 (event_type.name, int(muted), subject_id, user_id))
         await self._conn.commit()

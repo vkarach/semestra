@@ -1,17 +1,23 @@
+import logging
+
 from aiogram import F, Router
 from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from aiogram.utils.formatting import Bold, Text
 
-from bot.formatting import format_alias_prompt, format_note_prompt
+from bot.formatting import format_alias_prompt, format_mutes, format_note_prompt
 from bot.handlers.cards import subject_card, subjects_list
 from bot.handlers.prompts import Target, start_prompt
 from bot.handlers.shared import user_now
-from bot.keyboards import CLASSES_PAGE, SubjectCb, classes_keyboard, subjects_keyboard
+from bot.keyboards import (
+    CLASSES_PAGE, SubjectCb, classes_keyboard, mutes_keyboard, subjects_keyboard,
+)
 from bot.sending import answer, edit
 from db import EventRepo, SubjectRepo, UserRepo
 from models import TYPE_PLURAL, EventType
+
+log = logging.getLogger(__name__)
 
 router = Router()
 
@@ -80,6 +86,32 @@ async def on_classes(callback: CallbackQuery, callback_data: SubjectCb, user_rep
 
     content = Text(Bold(subject.title), "\n\n", "Pick a class to add a note for it alone.")
     await edit(callback.message, content, classes_keyboard(subject, events, start))
+    await callback.answer()
+
+
+@router.callback_query(SubjectCb.filter(F.action.in_({"mutes", "mute"})))
+async def on_mutes(callback: CallbackQuery, callback_data: SubjectCb,
+                   subject_repo: SubjectRepo) -> None:
+    assert isinstance(callback.message, Message)
+    user_id = callback.from_user.id
+    subject = await subject_repo.get_subject(user_id, callback_data.id)
+    if subject is None:
+        await callback.answer(GONE, show_alert=True)
+        return
+
+    if callback_data.action == "mute":
+        if callback_data.type:
+            event_type = EventType[callback_data.type]
+            await subject_repo.set_series_muted(user_id, subject.id, event_type,
+                                                event_type not in subject.muted_types)
+        else:
+            await subject_repo.set_muted(user_id, subject.id, not subject.muted)
+        log.info("user %s: toggled mute %s on subject %s", user_id, callback_data.type or "all",
+                 subject.id)
+        subject = await subject_repo.get_subject(user_id, subject.id)
+        assert subject
+
+    await edit(callback.message, format_mutes(subject), mutes_keyboard(subject))
     await callback.answer()
 
 

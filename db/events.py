@@ -11,12 +11,12 @@ log = logging.getLogger(__name__)
 _COLUMNS = (
     "e.rowid, e.name, e.type, e.starts_at, e.ends_at, e.notified_at, "
     "e.location, e.description, e.note, e.cancelled, "
-    "j.id, j.alias, j.note, s.note"
+    "j.id, j.alias, j.note, s.note, e.muted, s.muted, j.muted"
 )
 _FROM = (
     "FROM events e "
     "LEFT JOIN subjects j ON j.user_id = e.user_id AND j.name = e.name "
-    "LEFT JOIN series_notes s ON s.subject_id = j.id AND s.type = e.type"
+    "LEFT JOIN series s ON s.subject_id = j.id AND s.type = e.type"
 )
 
 
@@ -36,6 +36,9 @@ def _row_to_event(row) -> Event:
         alias=row[11],
         subject_note=row[12],
         series_note=row[13],
+        muted=bool(row[14]),
+        series_muted=bool(row[15]),
+        subject_muted=bool(row[16]),
     )
 
 
@@ -87,6 +90,7 @@ class EventRepo:
     )
     _SET_NOTE = "UPDATE events SET note = ? WHERE user_id = ? AND rowid = ?"
     _SET_CANCELLED = "UPDATE events SET cancelled = ? WHERE user_id = ? AND rowid = ?"
+    _SET_MUTED = "UPDATE events SET muted = ? WHERE user_id = ? AND rowid = ?"
     _MARK_NOTIFIED = "UPDATE events SET notified_at = ? WHERE rowid = ?"
     _COUNT_EVENTS = "SELECT COUNT(*) FROM events"
 
@@ -181,6 +185,11 @@ class EventRepo:
 
     async def set_cancelled(self, user_id: int, event_id: int, cancelled: bool):
         await self._conn.execute(self._SET_CANCELLED, (int(cancelled), user_id, event_id))
+        await self._conn.commit()
+
+
+    async def set_muted(self, user_id: int, event_id: int, muted: bool):
+        await self._conn.execute(self._SET_MUTED, (int(muted), user_id, event_id))
         await self._conn.commit()
 
 

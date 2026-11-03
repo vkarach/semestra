@@ -47,18 +47,23 @@ async def on_note(callback: CallbackQuery, callback_data: EventCb, state: FSMCon
                        has_current=bool(event.note))
 
 
-@router.callback_query(EventCb.filter(F.action == "cancel"))
-async def on_cancel_toggle(callback: CallbackQuery, callback_data: EventCb,
-                           user_repo: UserRepo, event_repo: EventRepo) -> None:
+@router.callback_query(EventCb.filter(F.action.in_({"cancel", "mute"})))
+async def on_toggle(callback: CallbackQuery, callback_data: EventCb,
+                    user_repo: UserRepo, event_repo: EventRepo) -> None:
     assert isinstance(callback.message, Message)
     user_id = callback.from_user.id
     event = await event_repo.get_event(user_id, callback_data.id)
     if event is None:
         await callback.answer(GONE, show_alert=True)
         return
-    await event_repo.set_cancelled(user_id, callback_data.id, not event.cancelled)
-    log.info("user %s: event %s cancelled=%s", user_id, event.id, not event.cancelled)
+    if callback_data.action == "cancel":
+        await event_repo.set_cancelled(user_id, callback_data.id, not event.cancelled)
+        toast = "Restored" if event.cancelled else "Marked cancelled"
+    else:
+        await event_repo.set_muted(user_id, callback_data.id, not event.muted)
+        toast = "Unmuted" if event.muted else "Muted"
+    log.info("user %s: event %s %s", user_id, event.id, toast.lower())
     card = await event_card(event_repo, user_repo, user_id, callback_data.id)
     if card is not None:
         await edit(callback.message, *card)
-    await callback.answer("Restored" if event.cancelled else "Marked cancelled")
+    await callback.answer(toast)

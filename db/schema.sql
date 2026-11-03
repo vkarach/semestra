@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS events (
     description TEXT,
     note        TEXT,
     cancelled   INTEGER NOT NULL DEFAULT 0,
+    muted       INTEGER NOT NULL DEFAULT 0,
     UNIQUE (user_id, name, type, starts_at)
 );
 
@@ -30,15 +31,17 @@ CREATE TABLE IF NOT EXISTS subjects (
     name    TEXT NOT NULL,
     alias   TEXT,
     note    TEXT,
+    muted   INTEGER NOT NULL DEFAULT 0,
     UNIQUE (user_id, name)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_subjects_alias
     ON subjects(user_id, alias COLLATE NOCASE) WHERE alias IS NOT NULL;
 
-CREATE TABLE IF NOT EXISTS series_notes (
+CREATE TABLE IF NOT EXISTS series (
     subject_id INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
     type       TEXT NOT NULL,
-    note       TEXT NOT NULL,
+    note       TEXT,
+    muted      INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (subject_id, type)
 );

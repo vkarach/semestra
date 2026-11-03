@@ -101,6 +101,15 @@ event, so a restart does not re-send what was already sent, and shortening the
 reminder window does not fire a second time for an event already covered by the
 old one. `/settings` shows everything in one place.
 
+Reminders can be muted on the same three levels as notes: a whole subject or
+one type of it from the subject's **Reminders** screen, a single class from its
+card. The switches are listed from the types the timetable actually has, not
+from a fixed list. The widest level wins, so a muted subject stays silent
+whatever its types say. Muting only silences the reminder and the start notice;
+the event still shows in the schedule and the digest. A failed delivery to one
+user (a blocked bot, a Telegram error) is logged and skipped, so it never holds
+up the notifications of everyone after them.
+
 ## Event types
 
 The `.ics` summary carries the kind of class, mapped to `CV` (cvicenie), `P`

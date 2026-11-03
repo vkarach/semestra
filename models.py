@@ -1,5 +1,5 @@
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
@@ -10,6 +10,12 @@ class EventType(Enum):
     SEMINAR = "S"
     EXAM = "EXAM"
     UNKNOWN = "UNK"
+
+
+class MuteLevel(Enum):
+    SUBJECT = "subject"
+    SERIES = "series"
+    CLASS = "class"
 
 
 DEFAULT_REMIND_MINUTES = 15
@@ -40,7 +46,8 @@ class Event:
                  location: str | None = None, description: str | None = None,
                  note: str | None = None, cancelled: bool = False,
                  subject_id: int | None = None, alias: str | None = None,
-                 series_note: str | None = None, subject_note: str | None = None):
+                 series_note: str | None = None, subject_note: str | None = None,
+                 muted: bool = False, series_muted: bool = False, subject_muted: bool = False):
         self.id = id
         self.name: str = name
         self.type: EventType = event_type
@@ -55,11 +62,25 @@ class Event:
         self.alias = alias
         self.series_note = series_note
         self.subject_note = subject_note
+        self.muted = muted
+        self.series_muted = series_muted
+        self.subject_muted = subject_muted
 
 
     @property
     def title(self) -> str:
         return self.alias or self.name
+
+
+    @property
+    def silenced_by(self) -> MuteLevel | None:
+        if self.subject_muted:
+            return MuteLevel.SUBJECT
+        if self.series_muted:
+            return MuteLevel.SERIES
+        if self.muted:
+            return MuteLevel.CLASS
+        return None
 
 
     @property
@@ -86,6 +107,8 @@ class Subject:
     note: str | None
     series_notes: dict[EventType, str]
     types: list[EventType]
+    muted: bool = False
+    muted_types: set[EventType] = field(default_factory=set)
 
     @property
     def title(self) -> str:

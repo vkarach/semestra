@@ -7,7 +7,8 @@ from aiogram.utils.formatting import (
 
 import notes
 from models import (
-    DEFAULT_REMIND_MINUTES, TYPE_PLURAL, TYPE_SINGULAR, Event, EventType, Subject, User,
+    DEFAULT_REMIND_MINUTES, TYPE_PLURAL, TYPE_SINGULAR, Event, EventType, MuteLevel, Subject,
+    User,
 )
 
 STATUS_MARK = {"done": " ✓", "now": " ▶", "upcoming": ""}
@@ -57,6 +58,17 @@ def format_note(note: notes.ParsedNote, indent: str = "") -> list[Text]:
     return rows
 
 
+def mute_reason(e: Event) -> str:
+    match e.silenced_by:
+        case MuteLevel.SUBJECT:
+            return f"Reminders off for all of {e.title}"
+        case MuteLevel.SERIES:
+            return f"Reminders off for all {TYPE_PLURAL[e.type].lower()} of {e.title}"
+        case MuteLevel.CLASS:
+            return "Reminders off for this class"
+    return "Reminders on"
+
+
 def merged_note(e: Event) -> notes.ParsedNote:
     return notes.merge(e.subject_note, e.series_note, e.note)
 
@@ -85,6 +97,8 @@ def format_details(e: Event) -> Text:
         lines.append(Text("Info: ", e.description))
     if e.cancelled:
         lines.append(Bold("Cancelled, no reminders for it"))
+    elif e.silenced_by is not None:
+        lines.append(Bold(mute_reason(e)))
     note = merged_note(e)
     if note:
         lines += ["", Bold("Notes"), *format_note(note)]
@@ -192,9 +206,31 @@ def format_subject(s: Subject) -> Text:
     if s.alias:
         head.append(s.name)
     head.append(Text("Shortcut: ", s.alias or "none"))
+    head.append(Text("Reminders: ", _mute_summary(s)))
     sections = [_note_section("Whole subject", s.note)]
     sections += [_note_section(series_label(t), s.series_notes.get(t)) for t in s.types]
     return as_list(as_list(*head), *sections, sep="\n\n")
+
+
+def _mute_summary(s: Subject) -> str:
+    if s.muted:
+        return "off for the whole subject"
+    muted = [series_label(t).lower() for t in s.types if t in s.muted_types]
+    if not muted:
+        return "on"
+    if len(muted) == len(s.types):
+        return "off for every type"
+    return "off for " + ", ".join(muted)
+
+
+def format_mutes(s: Subject) -> Text:
+    return Text(
+        Bold("Reminders for ", s.title), "\n\n",
+        "Tap to switch. Muted classes still show in the schedule and the digest, ",
+        "they only get no reminder and no start notice. ",
+        "A single class is muted from its own card.\n\n",
+        Text("Reminders: ", _mute_summary(s)),
+    )
 
 
 NOTE_FORMAT_HELP = Text(
