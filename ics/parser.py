@@ -56,6 +56,28 @@ def _weekly_occurrences(start: datetime, rrule) -> list[datetime]:
     return out
 
 
+EXAM_CATEGORY = "Termín hodnotenia"
+
+
+def _event_type(summary: str, categories: list[str]) -> EventType:
+    if EXAM_CATEGORY in categories:
+        return EventType.EXAM
+    if "Cvičenie" in summary:
+        return EventType.CVICENIE
+    if "Prednáška" in summary:
+        return EventType.PREDNASKA
+    if "Seminár" in summary:
+        return EventType.SEMINAR
+    return EventType.UNKNOWN
+
+
+def _text(component, prop: str) -> str | None:
+    value = component.get(prop)
+    if value is None:
+        return None
+    return str(value).strip() or None
+
+
 def parse_ics(raw: bytes) -> ParsedTimetable:
     cal = Calendar.from_ical(raw)
 
@@ -65,30 +87,22 @@ def parse_ics(raw: bytes) -> ParsedTimetable:
     skipped = 0
     for component in cal.walk("VEVENT"):
         summary = str(component.get("SUMMARY"))
-
         event_name = summary.split('(')[0].strip()
-        if "Cvičenie" in summary:
-            event_type = EventType.CVICENIE
-        elif "Prednáška" in summary:
-            event_type = EventType.PREDNASKA
-        elif "Seminár" in summary:
-            event_type = EventType.SEMINAR
-        else:
-            event_type = EventType.UNKNOWN
+        event_type = _event_type(summary, [str(c) for c in component.categories])
 
-        start_dt = component.get("DTSTART").dt
-
-        try:
-            end_dt = component.get("DTEND").dt
-        except AttributeError:
+        if "DTEND" not in component and "DURATION" not in component:
             skipped += 1
             continue
+        start_dt = component.get("DTSTART").dt
+        duration = component.end - start_dt
 
-        duration = end_dt - start_dt
+        location = _text(component, "LOCATION")
+        description = _text(component, "DESCRIPTION")
         for occ_start in _weekly_occurrences(start_dt, component.get("RRULE")):
-            events.append(Event(event_name, event_type, occ_start, occ_start + duration))
+            events.append(Event(event_name, event_type, occ_start, occ_start + duration,
+                                location=location, description=description))
 
-    log.info("parsed %d events, skipped %d without DTEND", len(events), skipped)
+    log.info("parsed %d events, skipped %d without an end", len(events), skipped)
     return ParsedTimetable(tz_str, events)
 
 

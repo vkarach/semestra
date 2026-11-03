@@ -1,6 +1,6 @@
 import logging
 
-from aiogram import Router, F, Bot, BaseMiddleware
+from aiogram import Router, F, Bot
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
@@ -16,6 +16,7 @@ from aiogram.types import (
 import clock
 from db import UserRepo, EventRepo
 from ics.parser import parse_ics
+from models import EventType
 
 log = logging.getLogger(__name__)
 
@@ -79,14 +80,16 @@ async def _apply(message: Message, bot: Bot, user_id: int, file_id: str, file_na
     now = clock.now(parsed.timezone) if parsed.timezone else None
     await event_repo.save_events(user_id, parsed.events, replace, now)
 
-    verb = "replaced" if replace else "merged"
+    verb = "Replaced" if replace else "Merged"
+    exams = sum(e.type is EventType.EXAM for e in parsed.events)
+    summary = f"{verb} {len(parsed.events)} events" + (f", {exams} of them exams" if exams else "")
     if parsed.timezone is None:
         log.warning("user %s: %r has no usable timezone", user_id, file_name)
-        await message.answer(f"{verb} {len(parsed.events)} events, but could not detect timezone")
+        await message.answer(f"{summary}, but could not detect timezone")
         return
 
     await user_repo.update_timezone(user_id, parsed.timezone)
-    await message.answer(f"{verb} {len(parsed.events)} events (timezone {parsed.timezone})")
+    await message.answer(f"{summary} (timezone {parsed.timezone}). Try /today or /exams")
 
 
 @router.message(Command("add_events"))
@@ -162,15 +165,6 @@ async def add_events(message: Message, bot: Bot, state: FSMContext,
                  document.file_id, document.file_name, replace, user_repo, event_repo)
 
 
-@router.message(Command("cancel"))
-async def cmd_cancel(message: Message, state: FSMContext):
-    if await state.get_state() is None:
-        await message.answer("Nothing to cancel.")
-        return
-    await state.clear()
-    await message.answer("Cancelled.")
-
-
 @router.message(Upload.waiting_file)
 async def waiting_file_hint(message: Message):
     content = Text("Send the ", Code(".ics"), " file, or /cancel to stop.")
@@ -182,19 +176,3 @@ async def stale_mode(callback: CallbackQuery):
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
     await callback.answer("This upload is no longer active.")
-
-
-class ResetUploadMiddleware(BaseMiddleware):
-    """Drop a half-finished upload as soon as the user runs another command."""
-
-    _KEEP = ("/add_events", "/cancel")
-
-    async def __call__(self, handler, event, data):
-        state: FSMContext | None = data.get("state")
-        text = getattr(event, "text", None) or ""
-        if state is not None and text.startswith("/") and not text.startswith(self._KEEP):
-            current = await state.get_state()
-            if current is not None and current.startswith(Upload.__name__):
-                log.info("dropping pending upload, user ran %r", text.split()[0])
-                await state.clear()
-        return await handler(event, data)

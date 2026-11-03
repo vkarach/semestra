@@ -39,29 +39,78 @@ occurrence it started as, and says so in the log.
 ## Asking
 
 - `/next` - the next event
-- `/today`, `/week` - the current day or week
+- `/today`, `/tomorrow` - one day, with buttons to step to the previous or next
+  day and a button per event that opens its card
+- `/week` - the current week
 - `/schedule` - the next 7 days, starting from the next event rather than from
   today, so a request made on a free Saturday still shows a full week
+- `/exams` - every assessment still ahead, with a countdown
 
 An empty answer names the closest event instead of saying nothing.
 
+## Subjects, shortcuts and notes
+
+`/subjects` lists every subject in the timetable, `/subjects ux` opens one by
+shortcut or by any part of its name, accents optional (`formalne` finds
+`Formalne jazyky`). A subject can carry a shortcut, used instead of the full
+name everywhere except its own card, so `Pouzivatelske rozhrania a pouzivatelsky
+zazitok` reads as `UX`. Shortcuts are unique per user, case-insensitively.
+
+Notes live on three levels, from widest to narrowest:
+
+- **Subject** - every class of it (ISI page, teacher's contact).
+- **Series** - one type of it, all lectures or all labs (the lecture's Webex).
+- **Class** - one occurrence ("test today").
+
+A card shows them merged into one list; when two levels set the same key, the
+narrower one wins. Listings show only the class note, the card and the
+reminders show everything.
+
+A note is one `key: value` per line, a trailing comma or semicolon is dropped,
+and a line without a key stays plain text. A JSON object is accepted and stored
+as the same lines. Values and bare lines that are `http(s)` links with a real
+host become link buttons on the card and on reminders. If Telegram still
+rejects a link, the message goes out without the link buttons instead of not
+at all.
+
+Subjects are rows of their own, created on import and kept when a subject drops
+out of a timetable, so a shortcut and its notes come back with the subject next
+semester. Class notes and the cancelled flag sit on the event row, which an
+import keeps when the same event comes back.
+
+## Event cards
+
+Every listed event opens a card: where it is, the info line from the file, the
+merged notes, and buttons to edit the class or series note, open the subject,
+and **Mark cancelled**. A cancelled event stays in the schedule struck through,
+gets no reminders, and is skipped by `/next` and the closest-event answers.
+
 ## Reminding
 
-Two notifications, both optional and both checked once a minute:
+Notifications are checked once a minute and are all optional:
 
-- A reminder before the event, 15 minutes ahead by default, changed with
-  `/remind`.
+- A reminder before the event, 15 minutes ahead by default, changed or turned
+  off with `/remind`.
 - A notice at the moment it starts, toggled with `/start_notice`.
+- A daily digest of the day's events at a set time, `/digest HH:MM` or
+  `/digest off`. Days without classes stay silent, and a digest missed by more
+  than 30 minutes (the bot was down) is skipped rather than sent late.
 
-`notified_at` is stored per event, so a restart does not re-send what was
-already sent, and shortening the reminder window does not fire a second time
-for an event already covered by the old one.
+Reminders and notices carry the room and the notes. `notified_at` is stored per
+event, so a restart does not re-send what was already sent, and shortening the
+reminder window does not fire a second time for an event already covered by the
+old one. `/settings` shows everything in one place.
 
 ## Event types
 
 The `.ics` summary carries the kind of class, mapped to `CV` (cvicenie), `P`
-(prednaska) or `S` (seminar). Anything unrecognised becomes `UNK` and is still
-imported - an unknown type is worth less than a lost class.
+(prednaska) or `S` (seminar). MAIS exports assessments with the category
+`Termin hodnotenia` and a `DURATION` instead of a `DTEND`; those become `EXAM`.
+Anything unrecognised becomes `UNK` and is still imported - an unknown type is
+worth less than a lost class.
+
+The room shown in listings is the last parenthesised part of `LOCATION`
+(`L9-A514`), the card shows the whole field.
 
 ## Testing against a different time
 

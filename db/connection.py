@@ -15,6 +15,12 @@ _MIGRATIONS = (
     ("users", "remind_before", "INTEGER"),
     ("events", "notified_at", "TEXT"),
     ("users", "start_notice", "INTEGER NOT NULL DEFAULT 1"),
+    ("users", "digest_at", "TEXT"),
+    ("users", "digest_sent_on", "TEXT"),
+    ("events", "location", "TEXT"),
+    ("events", "description", "TEXT"),
+    ("events", "note", "TEXT"),
+    ("events", "cancelled", "INTEGER NOT NULL DEFAULT 0"),
 )
 
 
@@ -25,6 +31,11 @@ async def _migrate(conn: aiosqlite.Connection) -> None:
         if column not in existing:
             await conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
             log.info("migrated: added %s.%s", table, column)
+    cursor = await conn.execute(
+        "INSERT OR IGNORE INTO subjects (user_id, name) SELECT DISTINCT user_id, name FROM events"
+    )
+    if cursor.rowcount:
+        log.info("migrated: backfilled %d subjects", cursor.rowcount)
 
 
 async def connect() -> aiosqlite.Connection:

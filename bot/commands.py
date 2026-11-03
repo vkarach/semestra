@@ -25,13 +25,20 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec("help", "Show all commands"),
     CommandSpec("cancel", "Cancel the current operation"),
 
-    CommandSpec("add_events", "Upload an .ics timetable", group="Schedule"),
-    CommandSpec("schedule", "Upcoming events for the next 7 days", group="Schedule"),
-    CommandSpec("next", "See next event", group="Schedule"),
     CommandSpec("today", "Schedule for today", group="Schedule"),
+    CommandSpec("tomorrow", "Schedule for tomorrow", group="Schedule"),
+    CommandSpec("next", "See next event", group="Schedule"),
     CommandSpec("week", "Schedule for this week", group="Schedule"),
-    CommandSpec("remind", "Set reminder lead time in minutes", group="Schedule"),
-    CommandSpec("start_notice", "Toggle notification when an event starts", group="Schedule"),
+    CommandSpec("schedule", "Upcoming events for the next 7 days", group="Schedule"),
+    CommandSpec("exams", "Upcoming exams with countdown", group="Schedule"),
+    CommandSpec("subjects", "Shortcuts and notes for your subjects", group="Schedule"),
+    CommandSpec("add_events", "Upload an .ics timetable", group="Schedule"),
+
+    CommandSpec("settings", "Show current settings", group="Settings"),
+    CommandSpec("remind", "Reminder lead time in minutes, or off", group="Settings"),
+    CommandSpec("start_notice", "Toggle notification when an event starts", group="Settings"),
+    CommandSpec("digest", "Daily schedule at a set time, HH:MM or off", group="Settings"),
+
     CommandSpec("ics_help", "Information about ics, where get it", group="Help"),
 
     CommandSpec("admin_info", "Usage statistics", group="Admin", access=Access.ADMIN),

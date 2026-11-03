@@ -10,7 +10,7 @@ from bot.middlewares import EnsureUserMiddleware, AdminMiddleware, PermissionMid
 from bot.setup import setup_commands
 from bot.notifier import setup_notifier
 
-from db import connect, EventRepo
+from db import connect, EventRepo, SubjectRepo
 from db.user import UserRepo
 
 from logging_config import setup_logging
@@ -30,6 +30,7 @@ async def main():
     conn = await connect()
     event_repo = EventRepo(conn)
     user_repo = UserRepo(conn)
+    subject_repo = SubjectRepo(conn)
 
     bot = Bot(token=os.environ["BOT_TOKEN"])
     dp = Dispatcher()
@@ -46,7 +47,8 @@ async def main():
     scheduler.start()
 
     try:
-        await dp.start_polling(bot, event_repo=event_repo, user_repo=user_repo)
+        await dp.start_polling(bot, event_repo=event_repo, user_repo=user_repo,
+                               subject_repo=subject_repo)
     finally:
         await conn.close()
         scheduler.shutdown(wait=False)

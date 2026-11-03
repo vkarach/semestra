@@ -1,8 +1,14 @@
 import logging
+from datetime import date
 
 from models import User
 
 log = logging.getLogger(__name__)
+
+
+def _row_to_user(r) -> User:
+    return User(r["user_id"], r["timezone"], r["remind_before"], bool(r["start_notice"]),
+                r["digest_at"], r["digest_sent_on"])
 
 
 class UserRepo:
@@ -14,11 +20,14 @@ class UserRepo:
         "UPDATE users SET start_notice = NOT start_notice WHERE user_id = ? RETURNING start_notice"
     )
 
+    _UPDATE_DIGEST_AT = "UPDATE users SET digest_at = ? WHERE user_id = ?"
+    _UPDATE_DIGEST_SENT_ON = "UPDATE users SET digest_sent_on = ? WHERE user_id = ?"
+
     _GET_USER_TIMEZONE = "SELECT timezone FROM users WHERE user_id = ?"
 
-    _LIST_USERS = (
-        "SELECT user_id, timezone, remind_before, start_notice FROM users WHERE timezone IS NOT NULL"
-    )
+    _USER_COLUMNS = "user_id, timezone, remind_before, start_notice, digest_at, digest_sent_on"
+    _GET_USER = f"SELECT {_USER_COLUMNS} FROM users WHERE user_id = ?"
+    _LIST_USERS = f"SELECT {_USER_COLUMNS} FROM users WHERE timezone IS NOT NULL"
 
     _COUNT_USERS = "SELECT COUNT(*) FROM users"
     _COUNT_USERS_WITH_TIMEZONE = "SELECT COUNT(*) FROM users WHERE timezone IS NOT NULL"
@@ -57,6 +66,22 @@ class UserRepo:
         await self._conn.commit()
 
 
+    async def set_digest_at(self, user_id: int, digest_at: str | None):
+        await self._conn.execute(self._UPDATE_DIGEST_AT, (digest_at, user_id))
+        await self._conn.commit()
+
+
+    async def mark_digest_sent(self, user_id: int, day: date):
+        await self._conn.execute(self._UPDATE_DIGEST_SENT_ON, (day.isoformat(), user_id))
+        await self._conn.commit()
+
+
+    async def get_user(self, user_id: int) -> User | None:
+        async with self._conn.execute(self._GET_USER, (user_id,)) as cursor:
+            row = await cursor.fetchone()
+        return _row_to_user(row) if row else None
+
+
     async def count_users(self) -> int:
         async with self._conn.execute(self._COUNT_USERS) as cursor:
             row = await cursor.fetchone()
@@ -72,7 +97,4 @@ class UserRepo:
     async def list_users(self) -> list[User]:
         async with self._conn.execute(self._LIST_USERS) as cursor:
             rows = await cursor.fetchall()
-            return [
-                User(r["user_id"], r["timezone"], r["remind_before"], bool(r["start_notice"]))
-                for r in rows
-            ]
+            return [_row_to_user(r) for r in rows]
